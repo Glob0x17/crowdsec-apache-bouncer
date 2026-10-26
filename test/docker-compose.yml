@@ -1,0 +1,32 @@
+# Test bench: CrowdSec AppSec component + Apache on Debian 13 (Lua 5.4) and Ubuntu 22.04 (Lua 5.3).
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:${CROWDSEC_VERSION:-v1.8.1}
+    environment:
+      COLLECTIONS: crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules
+      BOUNCER_KEY_apache: ${BOUNCER_KEY:-test-apache-bouncer-key}
+      DISABLE_ONLINE_API: "true"
+    volumes:
+      - ./crowdsec/appsec.yaml:/etc/crowdsec/acquis.d/appsec.yaml:ro
+      - crowdsec-data:/var/lib/crowdsec/data
+    healthcheck:
+      test: ["CMD", "cscli", "lapi", "status"]
+      interval: 5s
+      retries: 30
+
+  apache-debian13:
+    build: { context: .., dockerfile: test/apache/Dockerfile, args: { BASE: "debian:trixie" } }
+    volumes:
+      - ./bouncer.conf:/etc/crowdsec/bouncers/crowdsec-apache-bouncer.conf:ro
+    ports: ["127.0.0.1:18081:80"]
+    depends_on: { crowdsec: { condition: service_healthy } }
+
+  apache-ubuntu2204:
+    build: { context: .., dockerfile: test/apache/Dockerfile, args: { BASE: "ubuntu:22.04" } }
+    volumes:
+      - ./bouncer.conf:/etc/crowdsec/bouncers/crowdsec-apache-bouncer.conf:ro
+    ports: ["127.0.0.1:18082:80"]
+    depends_on: { crowdsec: { condition: service_healthy } }
+
+volumes:
+  crowdsec-data:
